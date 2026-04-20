@@ -149,6 +149,12 @@
   background-color: #dbeafe;
 }
 
+.option-button.arabic-option {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.7;
+}
+
 .subjective-input {
   width: 100%;
   box-sizing: border-box;

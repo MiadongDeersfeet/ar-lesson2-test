@@ -23,10 +23,10 @@ function App() {
       id: 'wm-16',
       prompt: '11. 다음 중 서로 관련된 단어끼리 짝지어진 것이 아닌 것은?',
       options: [
-        { id: '1', text: '1. مَرِيضٌ - مُسْتَشْفًى' },
-        { id: '2', text: '2. بَيْتٌ - دَارٌ' },
-        { id: '3', text: '3. أُسْتَاذٌ - جَامِعَةٌ' },
-        { id: '4', text: '4. أَمَامَ - حَامِلٌ' },
+        { id: '1', text: 'مَرِيضٌ - مُسْتَشْفًى' },
+        { id: '2', text: 'بَيْتٌ - دَارٌ' },
+        { id: '3', text: 'أُسْتَاذٌ - جَامِعَةٌ' },
+        { id: '4', text: 'أَمَامَ - حَامِلٌ' },
       ],
       answer: '4',
       answerLabel: '4번',
@@ -141,10 +141,10 @@ function App() {
       id: 'st-25',
       prompt: '25. 다음 내용을 읽고 알 수 있는 내용으로 옳지 않은 것은?',
       passage: [
-        'مُحَمَّدٌ طَالِبٌ فِي الجَامِعَةِ، وَبَيْتُ الطَّلَبَةِ قَرِيبٌ مِنَ الجَامِعَةِ',
-        'الجَامِعَةُ كَبِيرَةٌ وَجَمِيلَةٌ، وَالطَّالِبُ العَرَبِيُّ وَالطَّالِبَةُ الصِّينِيَّةُ فِي الفَصْلِ',
-        'المُوَظَّفُ جَالِسٌ عَلَى الكُرْسِيِّ، وَهُوَ سَمِينٌ',
-        'الطَّقْسُ اليَوْمَ مُعْتَدِلٌ، وَمُحَمَّدٌ يَشْرَبُ حَلِيبًا',
+        '.مُحَمَّدٌ طَالِبٌ فِي الجَامِعَةِ، وَبَيْتُ الطَّلَبَةِ قَرِيبٌ مِنَ الجَامِعَةِ',
+        '.الجَامِعَةُ كَبِيرَةٌ وَجَمِيلَةٌ، وَالطَّالِبُ العَرَبِيُّ وَالطَّالِبَةُ الصِّينِيَّةُ فِي الفَصْلِ',
+        '.المُوَظَّفُ جَالِسٌ عَلَى الكُرْسِيِّ، وَهُوَ سَمِينٌ',
+        '.الطَّقْسُ اليَوْمَ مُعْتَدِلٌ، وَمُحَمَّدٌ يَشْرَبُ حَلِيبًا',
       ],
       options: [
         { id: '1', text: '① 무함마드는 대학교 학생이다' },
@@ -157,17 +157,52 @@ function App() {
     },
   ]
 
-  const examSections = [
-    { key: 'a2k', title: '아랍어 단어 맞추기', questionCount: 5 },
-    { key: 'k2a', title: '한국어 단어 맞추기', questionCount: 5 },
-    { key: 'wordMatching', title: '', questionCount: 3 },
-    { key: 'listening', title: '듣기', questionCount: 5 },
-    { key: 'subjectiveWord', title: '단어 주관식', questionCount: 5 },
-    { key: 'wordCard', title: '단어카드 매칭', questionCount: 1 },
-    { key: 'sentence', title: '문장테스트', questionCount: 1 },
+  const questionFlow = [
+    ...arabicToKoreanQuestions.map((question, index) => ({
+      type: 'a2k',
+      sectionTitle: '아랍어 단어 맞추기',
+      number: index + 1,
+      question,
+    })),
+    ...koreanToArabicQuestions.map((question, index) => ({
+      type: 'k2a',
+      sectionTitle: '한국어 단어 맞추기',
+      number: index + 6,
+      question,
+    })),
+    ...wordMatchingQuestions.map((question, index) => ({
+      type: 'wordMatching',
+      sectionTitle: '단어매칭',
+      number: index + 11,
+      question,
+    })),
+    ...listeningQuestions.map((question, index) => ({
+      type: 'listening',
+      sectionTitle: '듣기',
+      number: index + 14,
+      question,
+    })),
+    {
+      type: 'subjectiveWord',
+      sectionTitle: '단어 주관식',
+      number: 19,
+    },
+    {
+      type: 'wordCard',
+      sectionTitle: '단어카드 매칭',
+      number: 24,
+    },
+    {
+      type: 'sentence',
+      sectionTitle: '문장테스트',
+      number: 25,
+      question: sentenceTestQuestions[0],
+    },
   ]
 
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [isExamStarted, setIsExamStarted] = useState(false)
+  const [candidateName, setCandidateName] = useState('')
   const [isExamSubmitted, setIsExamSubmitted] = useState(false)
 
   const [selectedAnswers, setSelectedAnswers] = useState({})
@@ -189,11 +224,12 @@ function App() {
     return shuffled
   })
 
-  const currentSection = examSections[currentSectionIndex]
-  const isLastSection = currentSectionIndex === examSections.length - 1
-  const progressPercent = ((currentSectionIndex + 1) / examSections.length) * 100
+  const currentFlowItem = questionFlow[currentQuestionIndex]
+  const isLastQuestion = currentQuestionIndex === questionFlow.length - 1
+  const progressPercent = ((currentQuestionIndex + 1) / questionFlow.length) * 100
 
   const normalizeAnswer = (text) => text.replace(/\s+/g, '').trim()
+  const hasArabicText = (text) => /[\u0600-\u06FF]/.test(text)
   const renderPromptWithUnderline = (prompt) => {
     return prompt.split(/(아닌|않은)/g).map((part, index) => {
       if (part === '아닌' || part === '않은') {
@@ -247,6 +283,7 @@ function App() {
   ]
   const totalScore = sectionScores.reduce((sum, section) => sum + section.score, 0)
   const totalQuestionCount = 25
+  const displayName = candidateName.trim() || '수험자'
 
   const getDragPayload = (event) => {
     const payload = event.dataTransfer.getData('text/plain')
@@ -343,158 +380,157 @@ function App() {
   const remainingDragCards = shuffledDraggableWordCards.filter((card) => !assignedDragCardIds.has(card.id))
 
   const handlePrev = () => {
-    setCurrentSectionIndex((prev) => Math.max(prev - 1, 0))
+    setCurrentQuestionIndex((prev) => Math.max(prev - 1, 0))
   }
   const handleNext = () => {
-    setCurrentSectionIndex((prev) => Math.min(prev + 1, examSections.length - 1))
+    setCurrentQuestionIndex((prev) => Math.min(prev + 1, questionFlow.length - 1))
   }
   const handleSubmitExam = () => {
     setIsExamSubmitted(true)
   }
-
-  const renderCurrentSection = () => {
-    if (currentSection.key === 'a2k') {
-      return (
-        <article className="test-card test-card-wide">
-          <div className="question-list">
-            {arabicToKoreanQuestions.map((question) => (
-              <section key={question.id} className="question-item">
-                <h3>{question.id}. 다음 단어의 한국어 뜻으로 알맞은 것을 고르시오.</h3>
-                <p className="question-word">{question.prompt}</p>
-                <div className="options">
-                  {question.options.map((option) => (
-                    <button
-                      type="button"
-                      key={option}
-                      className={`option-button ${selectedAnswers[question.id] === option ? 'selected' : ''}`}
-                      onClick={() => setSelectedAnswers((prev) => ({ ...prev, [question.id]: option }))}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </article>
-      )
+  const handleStartExam = () => {
+    if (!candidateName.trim()) {
+      return
     }
+    setIsExamStarted(true)
+  }
 
-    if (currentSection.key === 'k2a') {
+  const renderCurrentQuestion = () => {
+    if (currentFlowItem.type === 'a2k') {
+      const question = currentFlowItem.question
       return (
         <article className="test-card test-card-wide">
           <div className="question-list">
-            {koreanToArabicQuestions.map((question) => (
-              <section key={question.id} className="question-item">
-                <h3>
-                  {Number(question.id.replace('k2a-', '')) + 5}. 다음 단어의 아랍어 뜻으로 알맞은 것을
-                  고르시오.
-                </h3>
-                <p className="question-word">{question.prompt}</p>
-                <div className="options">
-                  {question.options.map((option) => (
-                    <button
-                      type="button"
-                      key={option}
-                      className={`option-button ${
-                        selectedKoreanToArabicAnswers[question.id] === option ? 'selected' : ''
-                      }`}
-                      onClick={() =>
-                        setSelectedKoreanToArabicAnswers((prev) => ({
-                          ...prev,
-                          [question.id]: option,
-                        }))
-                      }
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </article>
-      )
-    }
-
-    if (currentSection.key === 'wordMatching') {
-      return (
-        <article className="test-card test-card-wide">
-          <div className="question-list">
-            {wordMatchingQuestions.map((question) => (
-              <section key={question.id} className="question-item">
-                <h3>{renderPromptWithUnderline(question.prompt)}</h3>
-                {question.word && <p className="question-word">{question.word}</p>}
-                <div className="options">
-                  {question.options.map((option) => (
-                    <button
-                      type="button"
-                      key={option.id}
-                      className={`option-button ${
-                        selectedWordMatchingAnswers[question.id] === option.id ? 'selected' : ''
-                      }`}
-                      onClick={() =>
-                        setSelectedWordMatchingAnswers((prev) => ({ ...prev, [question.id]: option.id }))
-                      }
-                    >
-                      {option.text}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        </article>
-      )
-    }
-
-    if (currentSection.key === 'listening') {
-      return (
-        <article className="test-card test-card-wide">
-          <div className="question-list">
-            {listeningQuestions.map((question, index) => {
-              const playedCount = listeningPlayCounts[question.id] || 0
-              const remainCount = Math.max(3 - playedCount, 0)
-              return (
-                <section key={question.id} className="question-item">
-                  <h3>{index + 14}. 다음 문장을 듣고 알맞은 문장을 고르시오.</h3>
+            <section key={question.id} className="question-item">
+              <h3>{currentFlowItem.number}. 다음 단어의 한국어 뜻으로 알맞은 것을 고르시오.</h3>
+              <p className="question-word">{question.prompt}</p>
+              <div className="options">
+                {question.options.map((option) => (
                   <button
                     type="button"
-                    className="speaker-button"
-                    onClick={() => handleListeningPlay(question)}
-                    disabled={playedCount >= 3}
+                    key={option}
+                    className={`option-button ${
+                      selectedAnswers[question.id] === option ? 'selected' : ''
+                    } ${hasArabicText(option) ? 'arabic-option' : ''}`}
+                    onClick={() => setSelectedAnswers((prev) => ({ ...prev, [question.id]: option }))}
                   >
-                    🔊 문장 듣기 ({playedCount}/3)
+                    {option}
                   </button>
-                  <p className="listen-meta">남은 재생 횟수: {remainCount}회</p>
-                  {listeningAudioErrors[question.id] && (
-                    <p className="result-text wrong">{listeningAudioErrors[question.id]}</p>
-                  )}
-                  <div className="options">
-                    {question.options.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        className={`option-button ${
-                          selectedListeningAnswers[question.id] === option ? 'selected' : ''
-                        }`}
-                        onClick={() =>
-                          setSelectedListeningAnswers((prev) => ({ ...prev, [question.id]: option }))
-                        }
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )
-            })}
+                ))}
+              </div>
+            </section>
           </div>
         </article>
       )
     }
 
-    if (currentSection.key === 'subjectiveWord') {
+    if (currentFlowItem.type === 'k2a') {
+      const question = currentFlowItem.question
+      return (
+        <article className="test-card test-card-wide">
+          <div className="question-list">
+            <section key={question.id} className="question-item">
+              <h3>{currentFlowItem.number}. 다음 단어의 아랍어 뜻으로 알맞은 것을 고르시오.</h3>
+              <p className="question-word">{question.prompt}</p>
+              <div className="options">
+                {question.options.map((option) => (
+                  <button
+                    type="button"
+                    key={option}
+                    className={`option-button ${
+                      selectedKoreanToArabicAnswers[question.id] === option ? 'selected' : ''
+                    } ${hasArabicText(option) ? 'arabic-option' : ''}`}
+                    onClick={() =>
+                      setSelectedKoreanToArabicAnswers((prev) => ({
+                        ...prev,
+                        [question.id]: option,
+                      }))
+                    }
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        </article>
+      )
+    }
+
+    if (currentFlowItem.type === 'wordMatching') {
+      const question = currentFlowItem.question
+      return (
+        <article className="test-card test-card-wide">
+          <div className="question-list">
+            <section key={question.id} className="question-item">
+              <h3>{renderPromptWithUnderline(question.prompt)}</h3>
+              {question.word && <p className="question-word">{question.word}</p>}
+              <div className="options">
+                {question.options.map((option) => (
+                  <button
+                    type="button"
+                    key={option.id}
+                    className={`option-button ${
+                      selectedWordMatchingAnswers[question.id] === option.id ? 'selected' : ''
+                    } ${hasArabicText(option.text) ? 'arabic-option' : ''}`}
+                    onClick={() =>
+                      setSelectedWordMatchingAnswers((prev) => ({ ...prev, [question.id]: option.id }))
+                    }
+                  >
+                    {option.text}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        </article>
+      )
+    }
+
+    if (currentFlowItem.type === 'listening') {
+      const question = currentFlowItem.question
+      const playedCount = listeningPlayCounts[question.id] || 0
+      const remainCount = Math.max(3 - playedCount, 0)
+      return (
+        <article className="test-card test-card-wide">
+          <div className="question-list">
+            <section key={question.id} className="question-item">
+              <h3>{currentFlowItem.number}. 다음 문장을 듣고 알맞은 문장을 고르시오.</h3>
+              <button
+                type="button"
+                className="speaker-button"
+                onClick={() => handleListeningPlay(question)}
+                disabled={playedCount >= 3}
+              >
+                🔊 문장 듣기 ({playedCount}/3)
+              </button>
+              <p className="listen-meta">남은 재생 횟수: {remainCount}회</p>
+              {listeningAudioErrors[question.id] && (
+                <p className="result-text wrong">{listeningAudioErrors[question.id]}</p>
+              )}
+              <div className="options">
+                {question.options.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`option-button ${
+                      selectedListeningAnswers[question.id] === option ? 'selected' : ''
+                    } ${hasArabicText(option) ? 'arabic-option' : ''}`}
+                    onClick={() =>
+                      setSelectedListeningAnswers((prev) => ({ ...prev, [question.id]: option }))
+                    }
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        </article>
+      )
+    }
+
+    if (currentFlowItem.type === 'subjectiveWord') {
       return (
         <article className="test-card test-card-wide">
           <div className="question-list">
@@ -518,7 +554,7 @@ function App() {
       )
     }
 
-    if (currentSection.key === 'wordCard') {
+    if (currentFlowItem.type === 'wordCard') {
       return (
         <article className="test-card test-card-wide">
           <h2>단어카드 매칭</h2>
@@ -580,10 +616,11 @@ function App() {
       )
     }
 
-    return (
-      <article className="test-card test-card-wide">
-        <div className="question-list">
-          {sentenceTestQuestions.map((question) => (
+    if (currentFlowItem.type === 'sentence') {
+      const question = currentFlowItem.question
+      return (
+        <article className="test-card test-card-wide">
+          <div className="question-list">
             <section key={question.id} className="question-item">
               <h3>{question.prompt}</h3>
               <p className="reading-passage">{question.passage.join('\n')}</p>
@@ -594,7 +631,7 @@ function App() {
                     type="button"
                     className={`option-button ${
                       selectedSentenceTestAnswers[question.id] === option.id ? 'selected' : ''
-                    }`}
+                    } ${hasArabicText(option.text) ? 'arabic-option' : ''}`}
                     onClick={() =>
                       setSelectedSentenceTestAnswers((prev) => ({ ...prev, [question.id]: option.id }))
                     }
@@ -604,9 +641,44 @@ function App() {
                 ))}
               </div>
             </section>
-          ))}
-        </div>
-      </article>
+          </div>
+        </article>
+      )
+    }
+
+    return null
+  }
+
+  if (!isExamStarted) {
+    return (
+      <div className="lesson-app">
+        <header className="lesson-header">
+          <h1>2과 테스트</h1>
+        </header>
+        <main className="exam-main">
+          <article className="test-card test-card-wide">
+            <h2>시험 시작</h2>
+            <p className="card-description">시험자의 이름을 입력한 후 시작하세요.</p>
+            <input
+              type="text"
+              className="subjective-input"
+              placeholder="이름을 입력하세요"
+              value={candidateName}
+              onChange={(event) => setCandidateName(event.target.value)}
+            />
+            <div className="section-navigation">
+              <button
+                type="button"
+                className="nav-button"
+                onClick={handleStartExam}
+                disabled={!candidateName.trim()}
+              >
+                시험 시작
+              </button>
+            </div>
+          </article>
+        </main>
+      </div>
     )
   }
 
@@ -618,6 +690,7 @@ function App() {
         </header>
         <main className="exam-main">
           <article className="test-card test-card-wide">
+            <p className="card-description">{displayName}님의 시험 결과입니다.</p>
             <h2>최종 점수</h2>
             <p className="score-text">
               총점: {totalScore} / {totalQuestionCount}
@@ -646,24 +719,24 @@ function App() {
       <header className="lesson-header">
         <h1>2과 테스트</h1>
         <p className="section-meta">
-          섹션 {currentSectionIndex + 1} / {examSections.length} - {currentSection.title}
+          단계 {currentQuestionIndex + 1} / {questionFlow.length} - {currentFlowItem.sectionTitle}
         </p>
         <div className="progress-track">
           <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
         </div>
       </header>
       <main className="exam-main">
-        {renderCurrentSection()}
+        {renderCurrentQuestion()}
         <div className="section-navigation">
           <button
             type="button"
             className="nav-button secondary"
             onClick={handlePrev}
-            disabled={currentSectionIndex === 0}
+            disabled={currentQuestionIndex === 0}
           >
             이전
           </button>
-          {isLastSection ? (
+          {isLastQuestion ? (
             <button type="button" className="nav-button" onClick={handleSubmitExam}>
               25문항 전체 채점하기
             </button>
