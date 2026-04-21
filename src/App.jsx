@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import './App.css'
 
 function App() {
@@ -141,7 +141,7 @@ function App() {
       id: 'st-25',
       prompt: '25. 다음 내용을 읽고 알 수 있는 내용으로 옳지 않은 것은?',
       passage: [
-        '.مُحَمَّدٌ طَالِبٌ فِي الجَامِعَةِ، وَبَيْتُ الطَّلَبَةِ قَرِيبٌ مِنَ الجَامِعَةِ',
+        ' مُحَمَّدٌ طَالِبٌ فِي الجَامِعَةِ، وَبَيْتُ الطَّلَبَةِ قَرِيبٌ مِنَ الجَامِعَةِ',
         '.الجَامِعَةُ كَبِيرَةٌ وَجَمِيلَةٌ، وَالطَّالِبُ العَرَبِيُّ وَالطَّالِبَةُ الصِّينِيَّةُ فِي الفَصْلِ',
         '.المُوَظَّفُ جَالِسٌ عَلَى الكُرْسِيِّ، وَهُوَ سَمِينٌ',
         '.الطَّقْسُ اليَوْمَ مُعْتَدِلٌ، وَمُحَمَّدٌ يَشْرَبُ حَلِيبًا',
@@ -213,7 +213,12 @@ function App() {
   const [listeningPlayCounts, setListeningPlayCounts] = useState({})
   const [listeningAudioErrors, setListeningAudioErrors] = useState({})
   const [selectedSentenceTestAnswers, setSelectedSentenceTestAnswers] = useState({})
-  const [dragCardSlots, setDragCardSlots] = useState(Array(8).fill(null))
+  /** 단어카드 매칭(24번): 한국어·아랍어 순서 무관, 서로 맞는 짝만 제거, 오답 시 종료 */
+  const [wordCardMatchedIndices, setWordCardMatchedIndices] = useState(() => new Set())
+  const [wordCardFirstPick, setWordCardFirstPick] = useState(null)
+  const [wordCardMatchFailed, setWordCardMatchFailed] = useState(false)
+
+  const examScrollRef = useRef(null)
 
   const [shuffledDraggableWordCards] = useState(() => {
     const shuffled = [...draggableWordCards]
@@ -243,13 +248,6 @@ function App() {
     })
   }
 
-  const getDragCardText = (cardId) => {
-    return shuffledDraggableWordCards.find((card) => card.id === cardId)?.text ?? ''
-  }
-  const isWordCardMatchingAllCorrect = () => {
-    return wordCardMatchPairs.every((pair, index) => getDragCardText(dragCardSlots[index]) === pair.left)
-  }
-
   const arabicToKoreanScore = arabicToKoreanQuestions.reduce((count, question) => {
     return selectedAnswers[question.id] === question.answer ? count + 1 : count
   }, 0)
@@ -267,7 +265,8 @@ function App() {
     const isCorrect = question.answers.some((answer) => normalizeAnswer(answer) === userAnswer)
     return isCorrect ? count + 1 : count
   }, 0)
-  const wordCardScore = isWordCardMatchingAllCorrect() ? 1 : 0
+  const wordCardScore =
+    wordCardMatchedIndices.size === wordCardMatchPairs.length && !wordCardMatchFailed ? 1 : 0
   const sentenceTestScore = sentenceTestQuestions.reduce((count, question) => {
     return selectedSentenceTestAnswers[question.id] === question.answer ? count + 1 : count
   }, 0)
@@ -284,79 +283,6 @@ function App() {
   const totalScore = sectionScores.reduce((sum, section) => sum + section.score, 0)
   const totalQuestionCount = 25
   const displayName = candidateName.trim() || '수험자'
-
-  const getDragPayload = (event) => {
-    const payload = event.dataTransfer.getData('text/plain')
-    if (!payload) {
-      return null
-    }
-    try {
-      return JSON.parse(payload)
-    } catch {
-      return null
-    }
-  }
-
-  const handleCardDragStart = (event, cardId, sourceSlotIndex = null) => {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', JSON.stringify({ cardId, sourceSlotIndex }))
-  }
-
-  const handleDropToSlot = (event, targetSlotIndex) => {
-    event.preventDefault()
-    const payload = getDragPayload(event)
-    if (!payload?.cardId) {
-      return
-    }
-
-    const sourceRaw = payload.sourceSlotIndex
-    const sourceSlotIndex =
-      sourceRaw === null || sourceRaw === undefined || sourceRaw === ''
-        ? null
-        : Number.isNaN(Number(sourceRaw))
-          ? null
-          : Number(sourceRaw)
-
-    setDragCardSlots((prev) => {
-      const next = [...prev]
-      const targetCardId = next[targetSlotIndex]
-
-      if (sourceSlotIndex !== null) {
-        next[sourceSlotIndex] = null
-      }
-      if (sourceSlotIndex !== null && targetCardId) {
-        next[sourceSlotIndex] = targetCardId
-      }
-      next[targetSlotIndex] = payload.cardId
-      return next
-    })
-  }
-
-  const handleDropToCardPool = (event) => {
-    event.preventDefault()
-    const payload = getDragPayload(event)
-    if (!payload?.cardId) {
-      return
-    }
-
-    const sourceRaw = payload.sourceSlotIndex
-    const sourceSlotIndex =
-      sourceRaw === null || sourceRaw === undefined || sourceRaw === ''
-        ? null
-        : Number.isNaN(Number(sourceRaw))
-          ? null
-          : Number(sourceRaw)
-
-    if (sourceSlotIndex === null) {
-      return
-    }
-
-    setDragCardSlots((prev) => {
-      const next = [...prev]
-      next[sourceSlotIndex] = null
-      return next
-    })
-  }
 
   const handleListeningPlay = (question) => {
     const playedCount = listeningPlayCounts[question.id] || 0
@@ -376,9 +302,6 @@ function App() {
     })
   }
 
-  const assignedDragCardIds = new Set(dragCardSlots.filter(Boolean))
-  const remainingDragCards = shuffledDraggableWordCards.filter((card) => !assignedDragCardIds.has(card.id))
-
   const handlePrev = () => {
     setCurrentQuestionIndex((prev) => Math.max(prev - 1, 0))
   }
@@ -393,6 +316,118 @@ function App() {
       return
     }
     setIsExamStarted(true)
+  }
+
+  useLayoutEffect(() => {
+    if (!isExamStarted || isExamSubmitted) {
+      return
+    }
+    const panel = examScrollRef.current
+    if (panel) {
+      panel.scrollTop = 0
+    }
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [currentQuestionIndex, isExamStarted, isExamSubmitted])
+
+  useEffect(() => {
+    const onEnterNavigate = (event) => {
+      if (event.key !== 'Enter' || event.repeat) {
+        return
+      }
+      if (event.altKey || event.ctrlKey || event.metaKey) {
+        return
+      }
+
+      if (!isExamStarted) {
+        if (candidateName.trim()) {
+          event.preventDefault()
+          setIsExamStarted(true)
+        }
+        return
+      }
+
+      if (isExamSubmitted) {
+        return
+      }
+
+      event.preventDefault()
+      if (currentQuestionIndex >= questionFlow.length - 1) {
+        setIsExamSubmitted(true)
+      } else {
+        setCurrentQuestionIndex((prev) => Math.min(prev + 1, questionFlow.length - 1))
+      }
+    }
+
+    window.addEventListener('keydown', onEnterNavigate)
+    return () => window.removeEventListener('keydown', onEnterNavigate)
+  }, [
+    isExamStarted,
+    isExamSubmitted,
+    candidateName,
+    currentQuestionIndex,
+    questionFlow.length,
+  ])
+
+  const handleWordCardKoreanClick = (pairIndex) => {
+    if (wordCardMatchFailed || wordCardMatchedIndices.has(pairIndex)) {
+      return
+    }
+
+    if (!wordCardFirstPick) {
+      setWordCardFirstPick({ kind: 'korean', index: pairIndex })
+      return
+    }
+
+    if (wordCardFirstPick.kind === 'korean') {
+      if (wordCardFirstPick.index === pairIndex) {
+        setWordCardFirstPick(null)
+        return
+      }
+      setWordCardMatchFailed(true)
+      return
+    }
+
+    const arabicText = wordCardFirstPick.text
+    if (wordCardMatchPairs[pairIndex].left === arabicText) {
+      setWordCardMatchedIndices((prev) => new Set(prev).add(pairIndex))
+      setWordCardFirstPick(null)
+    } else {
+      setWordCardMatchFailed(true)
+    }
+  }
+
+  const handleWordCardArabicClick = (arabicText) => {
+    if (wordCardMatchFailed) {
+      return
+    }
+    const pairIndexForCard = wordCardMatchPairs.findIndex((p) => p.left === arabicText)
+    if (pairIndexForCard === -1 || wordCardMatchedIndices.has(pairIndexForCard)) {
+      return
+    }
+
+    if (!wordCardFirstPick) {
+      setWordCardFirstPick({ kind: 'arabic', text: arabicText })
+      return
+    }
+
+    if (wordCardFirstPick.kind === 'arabic') {
+      if (wordCardFirstPick.text === arabicText) {
+        setWordCardFirstPick(null)
+        return
+      }
+      setWordCardMatchFailed(true)
+      return
+    }
+
+    const koreanIndex = wordCardFirstPick.index
+    if (wordCardMatchPairs[koreanIndex].left === arabicText) {
+      setWordCardMatchedIndices((prev) => new Set(prev).add(koreanIndex))
+      setWordCardFirstPick(null)
+    } else {
+      setWordCardMatchFailed(true)
+    }
   }
 
   const renderCurrentQuestion = () => {
@@ -555,61 +590,78 @@ function App() {
     }
 
     if (currentFlowItem.type === 'wordCard') {
+      const totalPairs = wordCardMatchPairs.length
+      const matchedCount = wordCardMatchedIndices.size
+      const isComplete = matchedCount >= totalPairs && !wordCardMatchFailed
+      const phaseHint =
+        wordCardMatchFailed
+          ? '오답입니다. 이 단계는 틀린 것으로 처리됩니다.'
+          : isComplete
+            ? '모든 짝을 맞췄습니다.'
+            : !wordCardFirstPick
+              ? `(${matchedCount}/${totalPairs}) 한국어와 아랍어 중 카드 하나를 눌러 시작하세요.`
+              : wordCardFirstPick.kind === 'korean'
+                ? `(${matchedCount}/${totalPairs}) 이어서 짝이 되는 아랍어 카드를 누르세요.`
+                : `(${matchedCount}/${totalPairs}) 이어서 짝이 되는 한국어 뜻 카드를 누르세요.`
       return (
         <article className="test-card test-card-wide">
           <h2>단어카드 매칭</h2>
           <p className="card-description">
-            24. 아래 카드 배열을 보고, 숫자에 맞춰 알맞은 아랍어 단어를 드래그하세요.
+            24. 한국어 뜻 카드와 아랍어 카드를 누르는 순서는 자유입니다. 서로 짝이 맞으면 두 카드가
+            사라지고, 짝이 맞지 않으면 바로 틀린 것으로 끝납니다. 같은 카드를 다시 누르면 선택을 취소할 수
+            있습니다.
           </p>
+          <p className={`word-card-phase-hint ${wordCardMatchFailed ? 'wrong' : ''}`}>{phaseHint}</p>
           <section className="card-matching-reference-wrap">
+            <p className="word-card-section-label">한국어 뜻</p>
             <div className="reference-card-grid">
-              {wordCardMatchPairs.map((pair, index) => (
-                <div key={pair.id} className="reference-word-card">
-                  <div className="slot-index-label">{index + 1}</div>
-                  <div className="reference-korean">{pair.right}</div>
-                </div>
-              ))}
+              {wordCardMatchPairs.map((pair, index) => {
+                if (wordCardMatchedIndices.has(index)) {
+                  return <div key={pair.id} className="reference-word-card reference-word-card--cleared" />
+                }
+                const isSelected =
+                  wordCardFirstPick?.kind === 'korean' && wordCardFirstPick.index === index
+                return (
+                  <button
+                    key={pair.id}
+                    type="button"
+                    className={`reference-word-card reference-word-card--tap${isSelected ? ' reference-word-card--selected' : ''}`}
+                    onClick={() => handleWordCardKoreanClick(index)}
+                    disabled={wordCardMatchFailed}
+                  >
+                    <div className="reference-korean">{pair.right}</div>
+                  </button>
+                )
+              })}
             </div>
           </section>
           <section className="card-matching-drag-wrap">
-            <div className="drop-zone-grid">
-              {dragCardSlots.map((cardId, index) => (
-                <div
-                  key={`drop-${index + 1}`}
-                  className="drag-slot-card"
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => handleDropToSlot(event, index)}
-                >
-                  <div className="slot-index-label">슬롯 {index + 1}</div>
-                  {cardId ? (
-                    <div
-                      className="draggable-card-content"
-                      draggable
-                      onDragStart={(event) => handleCardDragStart(event, cardId, index)}
-                    >
-                      {getDragCardText(cardId)}
-                    </div>
-                  ) : (
-                    <div className="draggable-card-placeholder">여기로 드래그</div>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div
-              className="drag-card-pool"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={handleDropToCardPool}
-            >
-              {remainingDragCards.map((card) => (
-                <div
-                  key={card.id}
-                  className="draggable-card-content"
-                  draggable
-                  onDragStart={(event) => handleCardDragStart(event, card.id)}
-                >
-                  {card.text}
-                </div>
-              ))}
+            <p className="word-card-section-label">아랍어 단어</p>
+            <div className="drag-card-pool drag-card-pool--tap">
+              {shuffledDraggableWordCards.map((card) => {
+                const idx = wordCardMatchPairs.findIndex((p) => p.left === card.text)
+                const cleared = idx !== -1 && wordCardMatchedIndices.has(idx)
+                if (cleared) {
+                  return (
+                    <div key={card.id} className="arabic-card-cell arabic-card-cell--cleared" aria-hidden />
+                  )
+                }
+                const isSelected =
+                  wordCardFirstPick?.kind === 'arabic' && wordCardFirstPick.text === card.text
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    className={`draggable-card-content draggable-card-content--tap${
+                      isSelected ? ' draggable-card-content--selected' : ''
+                    }`}
+                    onClick={() => handleWordCardArabicClick(card.text)}
+                    disabled={wordCardMatchFailed}
+                  >
+                    {card.text}
+                  </button>
+                )
+              })}
             </div>
           </section>
         </article>
@@ -651,12 +703,12 @@ function App() {
 
   if (!isExamStarted) {
     return (
-      <div className="lesson-app">
-        <header className="lesson-header">
+      <div className="lesson-app lesson-app--splash">
+        <header className="lesson-header lesson-header--splash">
           <h1>2과 테스트</h1>
         </header>
-        <main className="exam-main">
-          <article className="test-card test-card-wide">
+        <main className="exam-main exam-main--splash">
+          <article className="test-card test-card-wide splash-card">
             <h2>시험 시작</h2>
             <p className="card-description">시험자의 이름을 입력한 후 시작하세요.</p>
             <input
@@ -666,10 +718,10 @@ function App() {
               value={candidateName}
               onChange={(event) => setCandidateName(event.target.value)}
             />
-            <div className="section-navigation">
+            <div className="section-navigation section-navigation--solo">
               <button
                 type="button"
-                className="nav-button"
+                className="nav-button nav-button--primary"
                 onClick={handleStartExam}
                 disabled={!candidateName.trim()}
               >
@@ -684,12 +736,12 @@ function App() {
 
   if (isExamSubmitted) {
     return (
-      <div className="lesson-app">
-        <header className="lesson-header">
+      <div className="lesson-app lesson-app--results">
+        <header className="lesson-header lesson-header--splash">
           <h1>2과 테스트 결과</h1>
         </header>
-        <main className="exam-main">
-          <article className="test-card test-card-wide">
+        <main className="exam-main exam-main--splash">
+          <article className="test-card test-card-wide results-card">
             <p className="card-description">{displayName}님의 시험 결과입니다.</p>
             <h2>최종 점수</h2>
             <p className="score-text">
@@ -715,38 +767,44 @@ function App() {
   }
 
   return (
-    <div className="lesson-app">
-      <header className="lesson-header">
-        <h1>2과 테스트</h1>
-        <p className="section-meta">
-          단계 {currentQuestionIndex + 1} / {questionFlow.length} - {currentFlowItem.sectionTitle}
-        </p>
-        <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+    <div className="lesson-app lesson-app--exam">
+      <header className="lesson-header lesson-header--exam">
+        <div className="lesson-header-inner">
+          <h1>2과 테스트</h1>
+          <p className="section-meta">
+            단계 {currentQuestionIndex + 1} / {questionFlow.length}
+            <span className="section-meta-divider">·</span>
+            <span className="section-meta-title">{currentFlowItem.sectionTitle}</span>
+          </p>
+          <div className="progress-track" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
+            <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+          </div>
         </div>
       </header>
-      <main className="exam-main">
+      <main ref={examScrollRef} className="exam-main exam-main--session">
         {renderCurrentQuestion()}
+      </main>
+      <footer className="exam-footer">
         <div className="section-navigation">
           <button
             type="button"
-            className="nav-button secondary"
+            className="nav-button nav-button--secondary"
             onClick={handlePrev}
             disabled={currentQuestionIndex === 0}
           >
             이전
           </button>
           {isLastQuestion ? (
-            <button type="button" className="nav-button" onClick={handleSubmitExam}>
+            <button type="button" className="nav-button nav-button--primary" onClick={handleSubmitExam}>
               25문항 전체 채점하기
             </button>
           ) : (
-            <button type="button" className="nav-button" onClick={handleNext}>
+            <button type="button" className="nav-button nav-button--primary" onClick={handleNext}>
               다음
             </button>
           )}
         </div>
-      </main>
+      </footer>
     </div>
   )
 }
