@@ -26,7 +26,7 @@ function App() {
         { id: '1', text: 'مَرِيضٌ - مُسْتَشْفًى' },
         { id: '2', text: 'بَيْتٌ - دَارٌ' },
         { id: '3', text: 'أُسْتَاذٌ - جَامِعَةٌ' },
-        { id: '4', text: 'أَمَامَ - حَامِلٌ' },
+        { id: '4', text: 'حَدِيقَةٌ - حَامِلٌ' },
       ],
       answer: '4',
       answerLabel: '4번',
@@ -204,6 +204,8 @@ function App() {
   const [isExamStarted, setIsExamStarted] = useState(false)
   const [candidateName, setCandidateName] = useState('')
   const [isExamSubmitted, setIsExamSubmitted] = useState(false)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [isPaperOpen, setIsPaperOpen] = useState(false)
 
   const [selectedAnswers, setSelectedAnswers] = useState({})
   const [selectedKoreanToArabicAnswers, setSelectedKoreanToArabicAnswers] = useState({})
@@ -219,6 +221,7 @@ function App() {
   const [wordCardMatchFailed, setWordCardMatchFailed] = useState(false)
 
   const examScrollRef = useRef(null)
+  const paperScrollRef = useRef(null)
 
   const [shuffledDraggableWordCards] = useState(() => {
     const shuffled = [...draggableWordCards]
@@ -283,6 +286,85 @@ function App() {
   const totalScore = sectionScores.reduce((sum, section) => sum + section.score, 0)
   const totalQuestionCount = 25
   const displayName = candidateName.trim() || '수험자'
+  const unansweredLabel = '(미응답)'
+  const getChoiceLabel = (choices, selectedValue) => {
+    if (!selectedValue) {
+      return unansweredLabel
+    }
+    const found = choices.find((choice) => choice.id === selectedValue || choice.text === selectedValue)
+    return found?.text ?? selectedValue
+  }
+  const detailedResults = [
+    ...arabicToKoreanQuestions.map((question, index) => {
+      const userAnswer = selectedAnswers[question.id] || unansweredLabel
+      return {
+        number: index + 1,
+        prompt: question.prompt,
+        userAnswer,
+        correctAnswer: question.answer,
+        isCorrect: selectedAnswers[question.id] === question.answer,
+      }
+    }),
+    ...koreanToArabicQuestions.map((question, index) => {
+      const userAnswer = selectedKoreanToArabicAnswers[question.id] || unansweredLabel
+      return {
+        number: index + 6,
+        prompt: question.prompt,
+        userAnswer,
+        correctAnswer: question.answer,
+        isCorrect: selectedKoreanToArabicAnswers[question.id] === question.answer,
+      }
+    }),
+    ...wordMatchingQuestions.map((question, index) => {
+      const selected = selectedWordMatchingAnswers[question.id]
+      return {
+        number: index + 11,
+        prompt: question.prompt,
+        userAnswer: getChoiceLabel(question.options, selected),
+        correctAnswer: getChoiceLabel(question.options, question.answer),
+        isCorrect: selected === question.answer,
+      }
+    }),
+    ...listeningQuestions.map((question, index) => {
+      const userAnswer = selectedListeningAnswers[question.id] || unansweredLabel
+      return {
+        number: index + 14,
+        prompt: '문장을 듣고 알맞은 문장을 고르시오.',
+        userAnswer,
+        correctAnswer: question.answer,
+        isCorrect: selectedListeningAnswers[question.id] === question.answer,
+      }
+    }),
+    ...subjectiveWordQuestions.map((question, index) => {
+      const userAnswer = subjectiveWordAnswers[question.id] || ''
+      const normalizedUserAnswer = normalizeAnswer(userAnswer)
+      const isCorrect = question.answers.some((answer) => normalizeAnswer(answer) === normalizedUserAnswer)
+      return {
+        number: index + 19,
+        prompt: `${question.word}의 한국어 뜻`,
+        userAnswer: userAnswer || unansweredLabel,
+        correctAnswer: question.answerLabel,
+        isCorrect,
+      }
+    }),
+    {
+      number: 24,
+      prompt: '단어카드 매칭',
+      userAnswer: `${wordCardMatchedIndices.size}/${wordCardMatchPairs.length}개 매칭`,
+      correctAnswer: '8/8개 모두 정확히 매칭',
+      isCorrect: wordCardScore === 1,
+    },
+    {
+      number: 25,
+      prompt: sentenceTestQuestions[0].prompt,
+      userAnswer: getChoiceLabel(
+        sentenceTestQuestions[0].options,
+        selectedSentenceTestAnswers[sentenceTestQuestions[0].id],
+      ),
+      correctAnswer: getChoiceLabel(sentenceTestQuestions[0].options, sentenceTestQuestions[0].answer),
+      isCorrect: selectedSentenceTestAnswers[sentenceTestQuestions[0].id] === sentenceTestQuestions[0].answer,
+    },
+  ]
 
   const handleListeningPlay = (question) => {
     const playedCount = listeningPlayCounts[question.id] || 0
@@ -310,12 +392,40 @@ function App() {
   }
   const handleSubmitExam = () => {
     setIsExamSubmitted(true)
+    setIsDetailOpen(false)
+    setIsPaperOpen(false)
   }
   const handleStartExam = () => {
     if (!candidateName.trim()) {
       return
     }
     setIsExamStarted(true)
+  }
+  const handleGoHome = () => {
+    setCurrentQuestionIndex(0)
+    setIsExamStarted(false)
+    setIsExamSubmitted(false)
+    setIsDetailOpen(false)
+    setIsPaperOpen(false)
+    setSelectedAnswers({})
+    setSelectedKoreanToArabicAnswers({})
+    setSelectedWordMatchingAnswers({})
+    setSubjectiveWordAnswers({})
+    setSelectedListeningAnswers({})
+    setListeningPlayCounts({})
+    setListeningAudioErrors({})
+    setSelectedSentenceTestAnswers({})
+    setWordCardMatchedIndices(new Set())
+    setWordCardFirstPick(null)
+    setWordCardMatchFailed(false)
+    setCandidateName('')
+  }
+  const handleScrollPaperTop = () => {
+    const panel = paperScrollRef.current
+    if (panel) {
+      panel.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   useLayoutEffect(() => {
@@ -701,6 +811,147 @@ function App() {
     return null
   }
 
+  const renderPaperView = () => {
+    return (
+      <section className="result-paper-scroll">
+        {arabicToKoreanQuestions.map((question, index) => (
+          <article key={question.id} className="paper-question-card">
+            <h3>{index + 1}. 다음 단어의 한국어 뜻으로 알맞은 것을 고르시오.</h3>
+            <p className="question-word">{question.prompt}</p>
+            <div className="options">
+              {question.options.map((option) => (
+                <button
+                  key={`${question.id}-${option}`}
+                  type="button"
+                  className={`option-button paper-option ${hasArabicText(option) ? 'arabic-option' : ''}`}
+                  disabled
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
+
+        {koreanToArabicQuestions.map((question, index) => (
+          <article key={question.id} className="paper-question-card">
+            <h3>{index + 6}. 다음 단어의 아랍어 뜻으로 알맞은 것을 고르시오.</h3>
+            <p className="question-word">{question.prompt}</p>
+            <div className="options">
+              {question.options.map((option) => (
+                <button
+                  key={`${question.id}-${option}`}
+                  type="button"
+                  className={`option-button paper-option ${hasArabicText(option) ? 'arabic-option' : ''}`}
+                  disabled
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
+
+        {wordMatchingQuestions.map((question, index) => (
+          <article key={question.id} className="paper-question-card">
+            <h3>{question.prompt}</h3>
+            {question.word && <p className="question-word">{question.word}</p>}
+            <div className="options">
+              {question.options.map((option) => (
+                <button
+                  key={`${question.id}-${option.id}`}
+                  type="button"
+                  className={`option-button paper-option ${hasArabicText(option.text) ? 'arabic-option' : ''}`}
+                  disabled
+                >
+                  {option.text}
+                </button>
+              ))}
+            </div>
+            <p className="paper-number-hint">{index + 11}번</p>
+          </article>
+        ))}
+
+        {listeningQuestions.map((question, index) => (
+          <article key={question.id} className="paper-question-card">
+            <h3>{index + 14}. 다음 문장을 듣고 알맞은 문장을 고르시오.</h3>
+            <button
+              type="button"
+              className="speaker-button paper-option"
+              onClick={() => handleListeningPlay(question)}
+            >
+              🔊 문장 듣기
+            </button>
+            <div className="options">
+              {question.options.map((option) => (
+                <button
+                  key={`${question.id}-${option}`}
+                  type="button"
+                  className={`option-button paper-option ${hasArabicText(option) ? 'arabic-option' : ''}`}
+                  disabled
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
+
+        {subjectiveWordQuestions.map((question, index) => (
+          <article key={question.id} className="paper-question-card">
+            <h3>{index + 19}. 다음 단어의 한국어 뜻을 쓰시오.</h3>
+            <p className="question-word">{question.word}</p>
+            <input type="text" className="subjective-input paper-input" disabled placeholder="답안을 작성하세요" />
+          </article>
+        ))}
+
+        <article className="paper-question-card">
+          <h3>24. 단어카드 매칭</h3>
+          <p className="card-description">
+            한국어 뜻 카드와 아랍어 카드를 매칭하세요. (시험지 보기에서는 클릭할 수 없습니다.)
+          </p>
+          <section className="card-matching-reference-wrap">
+            <p className="word-card-section-label">한국어 뜻</p>
+            <div className="reference-card-grid">
+              {wordCardMatchPairs.map((pair) => (
+                <div key={`paper-kor-${pair.id}`} className="reference-word-card">
+                  <div className="reference-korean">{pair.right}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="card-matching-drag-wrap">
+            <p className="word-card-section-label">아랍어 단어</p>
+            <div className="drag-card-pool drag-card-pool--tap">
+              {shuffledDraggableWordCards.map((card) => (
+                <div key={`paper-ar-${card.id}`} className="draggable-card-content paper-card-static">
+                  {card.text}
+                </div>
+              ))}
+            </div>
+          </section>
+        </article>
+
+        <article className="paper-question-card">
+          <h3>{sentenceTestQuestions[0].prompt}</h3>
+          <p className="reading-passage">{sentenceTestQuestions[0].passage.join('\n')}</p>
+          <div className="options">
+            {sentenceTestQuestions[0].options.map((option) => (
+              <button
+                key={`paper-sentence-${option.id}`}
+                type="button"
+                className={`option-button paper-option ${hasArabicText(option.text) ? 'arabic-option' : ''}`}
+                disabled
+              >
+                {option.text}
+              </button>
+            ))}
+          </div>
+        </article>
+      </section>
+    )
+  }
+
   if (!isExamStarted) {
     return (
       <div className="lesson-app lesson-app--splash">
@@ -734,11 +985,52 @@ function App() {
     )
   }
 
+  if (isExamSubmitted && isPaperOpen) {
+    return (
+      <div className="lesson-app lesson-app--paper">
+        <header className="lesson-header lesson-header--exam">
+          <div className="lesson-header-inner">
+            <div className="header-top-row">
+              <div className="header-left-actions">
+                <button
+                  type="button"
+                  className="home-button"
+                  onClick={() => {
+                    setIsPaperOpen(false)
+                  }}
+                >
+                  뒤로가기
+                </button>
+                <button type="button" className="home-button" onClick={handleGoHome}>
+                  홈
+                </button>
+              </div>
+              <h1>문제보기</h1>
+              <div className="header-spacer" aria-hidden />
+            </div>
+          </div>
+        </header>
+        <main ref={paperScrollRef} className="exam-main exam-main--paper">
+          {renderPaperView()}
+        </main>
+        <button type="button" className="scroll-top-button" onClick={handleScrollPaperTop}>
+          맨위로
+        </button>
+      </div>
+    )
+  }
+
   if (isExamSubmitted) {
     return (
       <div className="lesson-app lesson-app--results">
         <header className="lesson-header lesson-header--splash">
-          <h1>2과 테스트 결과</h1>
+          <div className="header-top-row">
+            <button type="button" className="home-button" onClick={handleGoHome}>
+              홈
+            </button>
+            <h1>2과 테스트 결과</h1>
+            <div className="header-spacer" aria-hidden />
+          </div>
         </header>
         <main className="exam-main exam-main--splash">
           <article className="test-card test-card-wide results-card">
@@ -760,6 +1052,46 @@ function App() {
                 </div>
               ))}
             </div>
+            <div className="section-navigation result-detail-toggle-wrap">
+              <button
+                type="button"
+                className="nav-button nav-button--secondary"
+                onClick={() => setIsDetailOpen((prev) => !prev)}
+              >
+                {isDetailOpen ? '상세보기 닫기' : '상세보기'}
+              </button>
+              <button
+                type="button"
+                className="nav-button nav-button--secondary"
+                onClick={() => setIsPaperOpen(true)}
+              >
+                문제보기
+              </button>
+            </div>
+            {isDetailOpen && (
+              <section className="result-detail-scroll">
+                {detailedResults.map((item) => (
+                  <article
+                    key={`detail-${item.number}`}
+                    className={`result-detail-item ${item.isCorrect ? 'correct' : 'wrong'}`}
+                  >
+                    <div className="result-detail-head">
+                      <strong>{item.number}번</strong>
+                      <span className={`result-chip ${item.isCorrect ? 'correct' : 'wrong'}`}>
+                        {item.isCorrect ? '정답' : '오답'}
+                      </span>
+                    </div>
+                    <p className="result-detail-prompt">{item.prompt}</p>
+                    <p className="result-detail-answer">
+                      내 답: <span>{item.userAnswer}</span>
+                    </p>
+                    <p className="result-detail-answer">
+                      정답: <span>{item.correctAnswer}</span>
+                    </p>
+                  </article>
+                ))}
+              </section>
+            )}
           </article>
         </main>
       </div>
@@ -770,7 +1102,13 @@ function App() {
     <div className="lesson-app lesson-app--exam">
       <header className="lesson-header lesson-header--exam">
         <div className="lesson-header-inner">
-          <h1>2과 테스트</h1>
+          <div className="header-top-row">
+            <button type="button" className="home-button" onClick={handleGoHome}>
+              홈
+            </button>
+            <h1>2과 테스트</h1>
+            <div className="header-spacer" aria-hidden />
+          </div>
           <p className="section-meta">
             단계 {currentQuestionIndex + 1} / {questionFlow.length}
             <span className="section-meta-divider">·</span>

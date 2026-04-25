@@ -95,6 +95,53 @@
   margin: 0 auto;
 }
 
+.header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.header-left-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-top-row h1 {
+  margin: 0;
+  text-align: center;
+}
+
+.header-spacer {
+  width: 74px;
+  flex-shrink: 0;
+}
+
+.home-button {
+  width: 74px;
+  flex-shrink: 0;
+  border: 2px solid var(--duo-border-strong);
+  border-bottom-width: 4px;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--duo-title);
+  font-size: 0.95rem;
+  font-weight: 900;
+  font-family: inherit;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.home-button:hover {
+  background: #f7f7f7;
+}
+
+.home-button:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
 .lesson-header--splash h1 {
   font-size: 1.85rem;
 }
@@ -546,6 +593,183 @@
   color: var(--duo-green-deep);
 }
 
+.result-detail-toggle-wrap {
+  margin-top: 14px;
+}
+
+.result-detail-scroll {
+  margin-top: 14px;
+  max-height: 52vh;
+  overflow-y: auto;
+  border: 2px solid var(--duo-border);
+  border-radius: var(--radius-md);
+  background: #fafafa;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.result-paper-scroll {
+  margin-top: 14px;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 2px solid var(--duo-border);
+  border-radius: var(--radius-md);
+  background: #fafafa;
+  padding: 10px;
+  display: grid;
+  gap: 12px;
+}
+
+.lesson-app--paper .exam-main--paper {
+  flex: 1;
+  overflow-y: auto;
+  max-width: 1120px;
+  padding-top: 18px;
+  padding-bottom: 24px;
+}
+
+.lesson-app--paper .result-paper-scroll {
+  margin-top: 0;
+  max-height: none;
+  overflow: visible;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.scroll-top-button {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 30;
+  border: 2px solid var(--duo-green-shadow);
+  border-bottom-width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #61e002 0%, var(--duo-green) 45%, var(--duo-green-deep) 100%);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 900;
+  font-family: inherit;
+  padding: 10px 14px;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(40, 153, 22, 0.3);
+}
+
+.scroll-top-button:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+.paper-question-card {
+  border: 2px solid var(--duo-border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 14px;
+  text-align: left;
+}
+
+.paper-question-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.03rem;
+  font-weight: 800;
+  color: var(--duo-title);
+}
+
+.paper-option {
+  opacity: 1 !important;
+}
+
+.paper-option:disabled {
+  cursor: not-allowed;
+  background: #f8f8f8;
+  border-color: #dbdbdb;
+  color: #6a6a6a;
+}
+
+.paper-input:disabled {
+  background: #f8f8f8;
+  color: #8a8a8a;
+  border-color: #dbdbdb;
+}
+
+.paper-card-static {
+  cursor: not-allowed;
+  background: #f8f8f8;
+  border-color: #dbdbdb;
+  color: #6a6a6a;
+}
+
+.paper-number-hint {
+  margin-top: 8px !important;
+  font-size: 0.9rem !important;
+  color: var(--duo-muted) !important;
+}
+
+.result-detail-item {
+  border: 2px solid var(--duo-border);
+  border-radius: var(--radius-sm);
+  background: var(--duo-card);
+  padding: 12px 12px 10px;
+  text-align: left;
+}
+
+.result-detail-item.correct {
+  border-color: #a6dd84;
+  background: #f5fff0;
+}
+
+.result-detail-item.wrong {
+  border-color: #ffc9c4;
+  background: #fff7f7;
+}
+
+.result-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.result-chip {
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.result-chip.correct {
+  background: #ddf6cb;
+  color: #347112;
+}
+
+.result-chip.wrong {
+  background: #ffe2de;
+  color: #9c1f1f;
+}
+
+.result-detail-prompt {
+  margin: 0 0 8px !important;
+  color: var(--duo-title) !important;
+  font-weight: 800;
+}
+
+.result-detail-answer {
+  margin: 0 !important;
+  font-size: 0.95rem !important;
+  color: var(--duo-muted) !important;
+}
+
+.result-detail-answer + .result-detail-answer {
+  margin-top: 4px !important;
+}
+
+.result-detail-answer span {
+  color: var(--duo-title);
+  font-weight: 700;
+}
+
 .card-matching-reference-wrap {
   border: 2px solid var(--duo-border);
   border-radius: var(--radius-md);
@@ -806,6 +1030,15 @@
 
   .lesson-header-inner {
     padding: 0 2px;
+  }
+
+  .home-button,
+  .header-spacer {
+    width: 64px;
+  }
+
+  .header-top-row h1 {
+    font-size: 1.45rem;
   }
 }
 
